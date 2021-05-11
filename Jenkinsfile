@@ -23,7 +23,7 @@ pipeline {
             steps {
                     sh 'docker stop ${CONTAINER_NAME}'
                     sh 'docker rm -f ${CONTAINER_NAME}'
-                    //sh 'mvn package'
+                    sh 'mvn package'
             }
         }
         stage('Clone prod Dockerfile') {
