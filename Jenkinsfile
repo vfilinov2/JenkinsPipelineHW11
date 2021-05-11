@@ -1,48 +1,50 @@
 pipeline {
-  agent {
-    docker {
-	image 'vmdocker2022/build_agent:latest'
-    }
-  }
-
-  stages {
-
-    stage('Clone repo boxfuse') {
-      steps {
-          git(url: 'https://github.com/vfilinov2/boxfuse.git')
-        echo 'Clone repo boxfuse'
-      }
-    }
-	
-	stage('Build war') {
-      steps {
-        sh 'mvn package'
-      }
-    }
     
-    stage('Build prod image') {
-      steps {
-          // sh 'mkdir prod_image'
-          // sh 'cd prod_image'
-           git(url: 'https://github.com/vfilinov2/JenkinsPipelineHW11.git')
-            //            script {
-    //  def dockerImage = docker.build("prod_image", "-f Dockerfile .")
-      //docker.withRegistry('', 'dockerhub-creds') {
-       // dockerImage.push()
-      //  dockerImage.push("latest")
-      //          }
-      //echo "Pushed Docker Image: ${env.IMAGE_NAME}"
-      //      }
-     // }
+    environment {
+        PROD_IMAGE      = 'vmdocker2022/prod_image'
+        CONTAINER_NAME   = 'hello10'
     }
-    stage('Run container') {
-        steps {
-            echo 'Run container'
+    agent {
+        docker {
+                    image 'vmdocker2022/build_agent'
+                    registryCredentialsId '3710df14-95d1-4344-8093-369064d57833'
+                    args '-v /var/run/docker.sock:/var/run/docker.sock:rw,z'
+                
+            }
+    }
 
-            //sudo docker pull devcvs-srv01:5000/shop2-backend/gateway-api:2-staging
+    stages {
+        stage('Clone boxfuse') {
+            steps {
+                    git(url: 'https://github.com/vfilinov2/boxfuse.git')
+            }
         }
-	}
-
-  }
+        stage('Build war') {
+            steps {
+                    sh 'docker stop ${CONTAINER_NAME}'
+                    sh 'docker rm -f ${CONTAINER_NAME}'
+                    //sh 'mvn package'
+            }
+        }
+        stage('Clone prod Dockerfile') {
+            steps {
+                   git(url: 'https://github.com/vfilinov2/JenkinsPipelineHW11.git')
+            }
+        }    
+        stage('Build and push prod image') {    
+            steps {
+                    script {
+                            def dockerImage = docker.build("${PROD_IMAGE}", "-f ./prod/Dockerfile .")
+                            docker.withRegistry('', '3710df14-95d1-4344-8093-369064d57833') {
+                                  dockerImage.push("latest")
+                                }
+                            }
+            }
+        }
+        stage('Run container') { 
+            steps {
+                   sh 'docker run -i -d -t -p 80:8080 --name=${CONTAINER_NAME} ${PROD_IMAGE}'
+            }
+        } 
+    }
 }
-
